@@ -1,0 +1,4 @@
+rootProject.name = 'tm-card'
+
+include 'tm-card-api'
+include 'tm-card-web'
