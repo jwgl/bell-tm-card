@@ -15,7 +15,7 @@ import org.springframework.cloud.netflix.eureka.EnableEurekaClient
 @SpringBootApplication
 @EnableResourceServer
 @EnableEurekaClient
-@EnableGlobalMethodSecurity(securedEnabled=true)
+@EnableGlobalMethodSecurity(prePostEnabled = true)
 class Application extends GrailsAutoConfiguration implements EnvironmentAware {
     static void main(String[] args) {
         GrailsApp.run(Application, args)

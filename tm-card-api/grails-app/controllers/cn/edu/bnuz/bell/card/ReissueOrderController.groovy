@@ -3,31 +3,35 @@ package cn.edu.bnuz.bell.card
 import cn.edu.bnuz.bell.http.BadRequestException
 import cn.edu.bnuz.bell.http.ServiceExceptionHandler
 import cn.edu.bnuz.bell.security.SecurityService
-import org.springframework.security.access.annotation.Secured
+import org.springframework.security.access.prepost.PreAuthorize
 
-@Secured(['ROLE_PERM_CARD_REISSUE_CHECK'])
-class CardReissueOrderController implements ServiceExceptionHandler {
+/**
+ * 补办学生证订单（管理员）
+ * @author Yang Lin
+ */
+@PreAuthorize('hasAuthority("PERM_CARD_REISSUE_CHECK")')
+class ReissueOrderController implements ServiceExceptionHandler {
     SecurityService securityService
-    CardReissueOrderService cardReissueOrderService
+    ReissueOrderService reissueOrderService
 
     def index() {
-        renderJson cardReissueOrderService.getAll()
+        renderJson reissueOrderService.getAll()
     }
 
     def show(Long id) {
-        renderJson cardReissueOrderService.getInfo(id)
+        renderJson reissueOrderService.getInfo(id)
     }
 
     def save() {
         def userId = securityService.userId
         def cmd = new CardReissueOrderCommand()
         bindData cmd, request.JSON
-        def order = cardReissueOrderService.create(userId, cmd)
+        def order = reissueOrderService.create(userId, cmd)
         renderJson([id: order.id])
     }
 
     def edit(Long id) {
-        renderJson cardReissueOrderService.getInfo(id)
+        renderJson reissueOrderService.getInfo(id)
     }
 
     def update(Long id) {
@@ -35,7 +39,7 @@ class CardReissueOrderController implements ServiceExceptionHandler {
         def cmd = new CardReissueOrderCommand()
         bindData cmd, request.JSON
         cmd.id = id
-        cardReissueOrderService.update(userId, cmd)
+        reissueOrderService.update(userId, cmd)
         renderOk()
     }
 
@@ -43,10 +47,10 @@ class CardReissueOrderController implements ServiceExceptionHandler {
         def status
         switch (request.JSON.type) {
             case 'RECEIVE':
-                status = cardReissueOrderService.receive(id, request.JSON.formId, request.JSON.received)
+                status = reissueOrderService.receive(id, request.JSON.formId, request.JSON.received)
                 break
             case 'RECEIVE_ALL':
-                status = cardReissueOrderService.receiveAll(id, request.JSON.received)
+                status = reissueOrderService.receiveAll(id, request.JSON.received)
                 break
             default:
                 throw new BadRequestException()

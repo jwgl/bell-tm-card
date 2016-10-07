@@ -1,0 +1,236 @@
+package cn.edu.bnuz.bell.card
+
+import cn.edu.bnuz.bell.http.BadRequestException
+import cn.edu.bnuz.bell.http.ForbiddenException
+import cn.edu.bnuz.bell.http.NotFoundException
+import cn.edu.bnuz.bell.organization.Student
+import cn.edu.bnuz.bell.security.User
+import cn.edu.bnuz.bell.security.UserLogService
+import cn.edu.bnuz.bell.workflow.Activities
+import cn.edu.bnuz.bell.workflow.AuditAction
+import cn.edu.bnuz.bell.workflow.CommitCommand
+import cn.edu.bnuz.bell.workflow.WorkflowService
+import grails.transaction.Transactional
+import org.springframework.beans.factory.annotation.Value
+
+import java.nio.file.Files
+import java.nio.file.Paths
+
+/**
+ * 补办学生证申请服务
+ * @author Yang Lin
+ */
+@Transactional
+class ReissueFormService {
+    UserLogService userLogService
+    WorkflowService workflowService
+
+    @Value('${bell.student.picturePath}')
+    String picturePath
+
+    /**
+     * 照片文件是否存在
+     * @param studentId 学生ID
+     * @return 照片文件是否存在
+     */
+    boolean pictureExists(String studentId) {
+        Files.exists(Paths.get(picturePath, "${studentId}.jpg"))
+    }
+
+    /**
+     * 查找学生所有申请
+     * @param studentId
+     * @return 申请列表
+     */
+    def getForms(String studentId) {
+        CardReissueForm.executeQuery '''
+select new Map(
+  form.id as id,
+  form.status as status
+)
+from CardReissueForm form
+join form.student student
+where student.id = :studentId
+''', [studentId: studentId]
+    }
+
+    private getStudent(String studentId) {
+        def results = Student.executeQuery '''
+select new map(
+  student.id as id,
+  student.name as name,
+  student.birthday as birthday,
+  admission.fromProvince as province,
+  department.name as department,
+  subject.name as subject,
+  '本科' as educationLevel)
+from Student student
+join student.admission admission
+join student.department department
+join student.major m
+join m.subject subject
+where student.id = :studentId
+''', [studentId: studentId]
+        if (!results) {
+            throw new NotFoundException()
+        }
+        return results[0]
+    }
+
+    def getFormInfo(Long id) {
+        def results = CardReissueForm.executeQuery '''
+select new map(
+  form.id as id,
+  form.reason as reason,
+  form.status as status,
+  form.student.id as studentId,
+  form.workflowInstance.id as workflowInstanceId
+)
+from CardReissueForm form
+where form.id = :id
+''', [id: id]
+        if (!results) {
+            throw new NotFoundException()
+        }
+
+        def form = results[0]
+        form.student = getStudent(form.studentId)
+        form.remove('studentId')
+
+        return form
+    }
+
+    def getFormForShow(String studentId, Long id) {
+        def form = getFormInfo(id)
+
+        if (form.student.id != studentId) {
+            throw new ForbiddenException()
+        }
+
+        form.editable = form.status.allow(AuditAction.UPDATE)
+
+        return form
+    }
+
+    def getFormForCreate(String studentId) {
+        return [student: getStudent(studentId)]
+    }
+
+    CardReissueForm create(String studentId, String reason) {
+        def student = Student.load(studentId)
+        def forms = CardReissueForm.findAllByStudent(student)
+
+        if (forms.size() >= 2) {
+            throw new BadRequestException('申请次数已经超过2次。')
+        } else if (forms.size() > 0) {
+            def unfinished = forms.find {it.status != CardReissueStatus.FINISHED}
+            if (unfinished) {
+                throw new BadRequestException('存在未完成的申请。')
+            }
+        }
+
+        CardReissueForm form = new CardReissueForm(
+                student: student,
+                reason: reason,
+                status: CardReissueStatus.CREATED,
+                dateCreated: new Date(),
+                dateModified: new Date(),
+        )
+        form.save()
+
+        userLogService.log(AuditAction.CREATE, form)
+
+        return form
+    }
+
+    def getFormForEdit(String studentId, Long id) {
+        def dto = getFormForShow(studentId, id)
+        if (!dto.editable) {
+            throw new BadRequestException()
+        } else {
+            return dto
+        }
+    }
+
+    CardReissueForm update(String studentId, Long id, String reason) {
+        CardReissueForm form = CardReissueForm.get(id)
+
+        if (!form) {
+            throw new NotFoundException()
+        }
+
+        if (form.student.id != studentId) {
+            throw new ForbiddenException()
+        }
+
+        if (!form.status.allow(AuditAction.UPDATE)) {
+            throw new BadRequestException()
+        }
+
+        form.reason = reason
+        form.dateModified = new Date()
+        form.save()
+
+        userLogService.log(AuditAction.UPDATE, form)
+
+        return form
+    }
+
+    void delete(String studentId, Long id) {
+        CardReissueForm form = CardReissueForm.get(id)
+
+        if (!form) {
+            throw new NotFoundException()
+        }
+
+        if (form.student.id != studentId) {
+            throw new ForbiddenException()
+        }
+
+        if (!form.status.allow(AuditAction.DELETE)) {
+            throw new BadRequestException()
+        }
+
+        userLogService.log(AuditAction.DELETE, form)
+
+        if(form.workflowInstance) {
+            form.workflowInstance.delete()
+        }
+
+        form.delete()
+    }
+
+    void commit(CommitCommand cmd, String userId) {
+        CardReissueForm form = CardReissueForm.get(cmd.id)
+
+        if (!form) {
+            throw new NotFoundException()
+        }
+
+        if (form.student.id != userId) {
+
+            throw new ForbiddenException()
+        }
+
+        if (!form.status.allow(AuditAction.COMMIT)) {
+            throw new BadRequestException()
+        }
+
+        def action = AuditAction.COMMIT
+        if (form.status == CardReissueStatus.REJECTED) {
+            workflowService.setProcessed(form.workflowInstance, userId)
+        } else {
+            form.workflowInstance = workflowService.createInstance('card.reissue', cmd.title, cmd.id)
+        }
+        workflowService.createWorkItem(form.workflowInstance, Activities.CHECK, userId, action, cmd.comment, cmd.to)
+
+        form.status = form.status.next(action)
+        form.save()
+
+        userLogService.log(action, form)
+    }
+
+    def getCheckers(Long id) {
+        User.findAllWithPermission('PERM_CARD_REISSUE_CHECK')
+    }
+}

@@ -6,16 +6,15 @@ import cn.edu.bnuz.bell.http.ServiceExceptionHandler
 import cn.edu.bnuz.bell.organization.Student
 import cn.edu.bnuz.bell.workflow.AuditAction
 import cn.edu.bnuz.bell.workflow.CommitCommand
-import grails.util.Holders
-import org.springframework.security.access.annotation.Secured
+import org.springframework.security.access.prepost.PreAuthorize
 
 /**
  * 补办学生证申请（学生）
  * @author Yang Lin
  */
-@Secured(['ROLE_PERM_CARD_REISSUE_WRITE'])
-class CardReissueFormController implements ServiceExceptionHandler {
-    CardReissueFormService cardReissueFormService
+@PreAuthorize('hasAuthority("PERM_CARD_REISSUE_WRITE")')
+class ReissueFormController implements ServiceExceptionHandler {
+    ReissueFormService reissueFormService
 
     def index(String userId) {
         Student student = Student.findById(userId)
@@ -23,42 +22,40 @@ class CardReissueFormController implements ServiceExceptionHandler {
             throw new NotFoundException()
         }
 
-        List<CardReissueForm> forms = cardReissueFormService.getAll(userId)
-
         renderJson([
                 student: [
                         id      : student.id,
                         atSchool: student.atSchool,
-                        picture : new File(Holders.config.bell.student.picturePath, "${student.id}.jpg").exists()
+                        picture : reissueFormService.pictureExists(student.id)
                 ],
-                forms  : forms
+                forms  : reissueFormService.getForms(student.id)
         ])
     }
 
     def show(String userId, Long id) {
-        renderJson cardReissueFormService.getFormForShow(userId, id)
+        renderJson reissueFormService.getFormForShow(userId, id)
     }
 
     def create(String userId) {
-        renderJson cardReissueFormService.getFormForCreate(userId)
+        renderJson reissueFormService.getFormForCreate(userId)
     }
 
     def save(String userId) {
-        def form = cardReissueFormService.create(userId, request.JSON.reason as String)
+        def form = reissueFormService.create(userId, request.JSON.reason as String)
         renderJson([id: form.id])
     }
 
     def edit(String userId, Long id) {
-        renderJson cardReissueFormService.getFormForEdit(userId, id)
+        renderJson reissueFormService.getFormForEdit(userId, id)
     }
 
     def update(String userId, Long id) {
-        cardReissueFormService.update(userId, id, request.JSON.reason as String)
+        reissueFormService.update(userId, id, request.JSON.reason as String)
         renderOk()
     }
 
     def delete(String userId, Long id) {
-        cardReissueFormService.delete(userId, id)
+        reissueFormService.delete(userId, id)
         renderOk()
     }
 
@@ -69,7 +66,7 @@ class CardReissueFormController implements ServiceExceptionHandler {
                 def cmd = new CommitCommand()
                 bindData(cmd, request.JSON)
                 cmd.id = id
-                cardReissueFormService.commit(cmd, userId)
+                reissueFormService.commit(cmd, userId)
                 renderOk()
                 break
             default:
@@ -77,7 +74,7 @@ class CardReissueFormController implements ServiceExceptionHandler {
         }
     }
 
-    def checkers(Long cardReissueFormId) {
-        renderJson cardReissueFormService.getCheckers(cardReissueFormId)
+    def checkers(Long reissueFormId) {
+        renderJson reissueFormService.getCheckers(reissueFormId)
     }
 }
