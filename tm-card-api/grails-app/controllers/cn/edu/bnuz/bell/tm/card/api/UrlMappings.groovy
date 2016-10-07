@@ -5,18 +5,18 @@ class UrlMappings {
     static mappings = {
         // 按用户获取信息
         "/users"(resources: 'user', includes: []) {
-            "/reissueForms"(resources: 'reissueForm') {
-                "/checkers"(controller: 'reissueForm', action: 'checkers', method: 'GET')
+            "/cardReissues"(resources: 'cardReissueForm') {
+                "/checkers"(controller: 'cardReissueForm', action: 'checkers', method: 'GET')
             }
         }
 
         // 补办学生证管理
-        "/reissueForms"(resources: 'reissueAdmin', includes:['index', 'show']) {
-            "/reviews"(resources: 'reissueAdmin', includes: ['patch'])
+        "/cardReissues"(resources: 'cardReissueAdmin', includes:['index', 'show']) {
+            "/reviews"(resources: 'cardReissueAdmin', includes: ['patch'])
         }
 
         // 补办学生证订单
-        "/reissueOrders"(resources: 'reissueOrder')
+        "/cardReissueOrders"(resources: 'cardReissueOrder')
 
         "500"(view: '/error')
         "404"(view: '/notFound')

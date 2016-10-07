@@ -8,7 +8,7 @@ import org.springframework.http.HttpStatus
  * 补办学生证申请拦截器
  * @author Yang Lin
  */
-class ReissueFormInterceptor {
+class CardReissueFormInterceptor {
     SecurityService securityService
 
     boolean before() {
