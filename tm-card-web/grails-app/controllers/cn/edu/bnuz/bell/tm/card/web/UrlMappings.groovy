@@ -3,18 +3,18 @@ package cn.edu.bnuz.bell.tm.card.web
 class UrlMappings {
 
     static mappings = {
-        "/cardReissues"(resources: 'cardReissueAdmin', includes:['index', 'show']) {
-            "/reviews"(resources: 'cardReissueReview', includes: ['show'])
+        "/reissueForms"(resources: 'reissueAdmin', includes:['index', 'show']) {
+            "/reviews"(resources: 'reissueReview', includes: ['show'])
         }
 
-        "/cardReissueOrders"(resources: 'cardReissueOrder', includes: ['index']) {
+        "/reissueOrders"(resources: 'reissueOrder', includes: ['index']) {
             "/productionOrder"(action: 'productionOrder')
             "/distributionList"(action: 'distributionList')
             "/pictures"(action: 'pictures')
         }
 
         "/users"(resources: 'user') {
-            "/cardReissues"(resources: 'cardReissueForm', includes: ['index'])
+            "/reissueForms"(resources: 'reissueForm', includes: ['index'])
         }
 
         "500"(view:'/error')
