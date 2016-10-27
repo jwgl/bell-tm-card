@@ -43,14 +43,20 @@ class ReissueOrderController implements ServiceExceptionHandler {
         renderOk()
     }
 
+    def delete(Long id) {
+        reissueOrderService.delete(id)
+        renderOk()
+    }
+
     def patch(Long id) {
+        def userId = securityService.userId
         def status
         switch (request.JSON.type) {
             case 'RECEIVE':
-                status = reissueOrderService.receive(id, request.JSON.formId, request.JSON.received)
+                status = reissueOrderService.receive(userId, id, request.JSON.formId, request.JSON.received)
                 break
             case 'RECEIVE_ALL':
-                status = reissueOrderService.receiveAll(id, request.JSON.received)
+                status = reissueOrderService.receiveAll(userId, id, request.JSON.received)
                 break
             default:
                 throw new BadRequestException()

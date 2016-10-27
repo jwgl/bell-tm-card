@@ -4,8 +4,8 @@ import cn.edu.bnuz.bell.http.BadRequestException
 import cn.edu.bnuz.bell.http.NotFoundException
 import cn.edu.bnuz.bell.http.ServiceExceptionHandler
 import cn.edu.bnuz.bell.organization.Student
-import cn.edu.bnuz.bell.workflow.AuditAction
 import cn.edu.bnuz.bell.workflow.CommitCommand
+import cn.edu.bnuz.bell.workflow.Events
 import org.springframework.security.access.prepost.PreAuthorize
 
 /**
@@ -60,13 +60,13 @@ class ReissueFormController implements ServiceExceptionHandler {
     }
 
     def patch(String userId, Long id, String op) {
-        def operation = AuditAction.valueOf(op)
+        def operation = Events.valueOf(op)
         switch (operation) {
-            case AuditAction.COMMIT:
+            case Events.COMMIT:
                 def cmd = new CommitCommand()
                 bindData(cmd, request.JSON)
                 cmd.id = id
-                reissueFormService.commit(cmd, userId)
+                reissueFormService.commit(userId, cmd)
                 renderOk()
                 break
             default:
@@ -74,7 +74,7 @@ class ReissueFormController implements ServiceExceptionHandler {
         }
     }
 
-    def checkers(Long reissueFormId) {
-        renderJson reissueFormService.getCheckers(reissueFormId)
+    def checkers() {
+        renderJson reissueFormService.getCheckers()
     }
 }

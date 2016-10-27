@@ -3,8 +3,9 @@ package cn.edu.bnuz.bell.card
 import cn.edu.bnuz.bell.http.BadRequestException
 import cn.edu.bnuz.bell.security.SecurityService
 import cn.edu.bnuz.bell.workflow.AcceptCommand
-import cn.edu.bnuz.bell.workflow.AuditAction
+import cn.edu.bnuz.bell.workflow.Events
 import cn.edu.bnuz.bell.workflow.RejectCommand
+import cn.edu.bnuz.bell.workflow.States
 import org.springframework.security.access.prepost.PreAuthorize
 
 /**
@@ -17,7 +18,7 @@ class ReissueAdminController {
     SecurityService securityService
 
     def index() {
-        def status = CardReissueStatus.valueOf(params.status)
+        def status = States.valueOf(params.status)
         // 当参数中没有offset和max时，表示不分页
         def offset = params.int("offset") ?: 0
         def max = params.int("max") ?: (params.int("offset") ? 20 : Integer.MAX_VALUE)
@@ -32,15 +33,15 @@ class ReissueAdminController {
 
     def patch(Long reissueAdminId, String id, String op) {
         def userId = securityService.userId
-        def operation = AuditAction.valueOf(op)
+        def operation = Events.valueOf(op)
         switch (operation) {
-            case AuditAction.ACCEPT:
+            case Events.ACCEPT:
                 def cmd = new AcceptCommand()
                 bindData(cmd, request.JSON)
                 cmd.id = reissueAdminId
                 reissueAdminService.accept(cmd, userId, UUID.fromString(id))
                 break
-            case AuditAction.REJECT:
+            case Events.REJECT:
                 def cmd = new RejectCommand()
                 bindData(cmd, request.JSON)
                 cmd.id = reissueAdminId
