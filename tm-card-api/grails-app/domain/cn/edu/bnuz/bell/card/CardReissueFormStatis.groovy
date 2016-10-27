@@ -1,6 +1,6 @@
 package cn.edu.bnuz.bell.card
 
-class CardReissueFormStatis {
+class CardReissueFormRank {
     /**
      * 申请次序
      */
@@ -13,7 +13,7 @@ class CardReissueFormStatis {
 
     static mapping = {
         comment '补办学生证申请表-统计'
-        table   name: 'dv_card_reissue_form_statis'
+        table   name: 'dv_card_reissue_form_rank'
         id      column: 'form_id', type: 'long', generator: 'foreign', params: [property: 'form']
         form    comment: '申请', insertable: false, updateable: false
     }

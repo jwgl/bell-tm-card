@@ -5,11 +5,9 @@ import cn.edu.bnuz.bell.http.ForbiddenException
 import cn.edu.bnuz.bell.http.NotFoundException
 import cn.edu.bnuz.bell.organization.Student
 import cn.edu.bnuz.bell.security.User
-import cn.edu.bnuz.bell.security.UserLogService
-import cn.edu.bnuz.bell.workflow.Activities
-import cn.edu.bnuz.bell.workflow.AuditAction
 import cn.edu.bnuz.bell.workflow.CommitCommand
-import cn.edu.bnuz.bell.workflow.WorkflowService
+import cn.edu.bnuz.bell.workflow.DomainStateMachineHandler
+import cn.edu.bnuz.bell.workflow.States
 import grails.transaction.Transactional
 import org.springframework.beans.factory.annotation.Value
 
@@ -22,8 +20,7 @@ import java.nio.file.Paths
  */
 @Transactional
 class ReissueFormService {
-    UserLogService userLogService
-    WorkflowService workflowService
+    DomainStateMachineHandler domainStateMachineHandler
 
     @Value('${bell.student.picturePath}')
     String picturePath
@@ -107,7 +104,7 @@ where form.id = :id
             throw new ForbiddenException()
         }
 
-        form.editable = form.status.allow(AuditAction.UPDATE)
+        form.editable = domainStateMachineHandler.canUpdate(form)
 
         return form
     }
@@ -116,41 +113,49 @@ where form.id = :id
         return [student: getStudent(studentId)]
     }
 
-    CardReissueForm create(String studentId, String reason) {
-        def student = Student.load(studentId)
-        def forms = CardReissueForm.findAllByStudent(student)
+    def getFormForEdit(String studentId, Long id) {
+        def form = getFormInfo(id)
 
-        if (forms.size() >= 2) {
-            throw new BadRequestException('申请次数已经超过2次。')
-        } else if (forms.size() > 0) {
-            def unfinished = forms.find {it.status != CardReissueStatus.FINISHED}
-            if (unfinished) {
-                throw new BadRequestException('存在未完成的申请。')
-            }
+        if (form.student.id != studentId) {
+            throw new ForbiddenException()
         }
 
-        CardReissueForm form = new CardReissueForm(
-                student: student,
-                reason: reason,
-                status: CardReissueStatus.CREATED,
-                dateCreated: new Date(),
-                dateModified: new Date(),
-        )
-        form.save()
-
-        userLogService.log(AuditAction.CREATE, form)
+        if (!domainStateMachineHandler.canUpdate(form)) {
+            throw new BadRequestException()
+        }
 
         return form
     }
 
-    def getFormForEdit(String studentId, Long id) {
-        def dto = getFormForShow(studentId, id)
-        if (!dto.editable) {
-            throw new BadRequestException()
-        } else {
-            return dto
+    CardReissueForm create(String studentId, String reason) {
+        def student = Student.load(studentId)
+        def totalCount = CardReissueForm.countByStudent(student)
+
+        if (totalCount >= 2) {
+            throw new BadRequestException('申请次数已经超过2次。')
+        } else if (totalCount > 0) {
+            def unfinished = CardReissueForm.countByStudentAndStatusNotEqual(student, States.FINISHED)
+            if (unfinished > 0) {
+                throw new BadRequestException('存在未完成的申请。')
+            }
         }
+
+        def now = new Date()
+        CardReissueForm form = new CardReissueForm(
+                student: student,
+                reason: reason,
+                dateCreated: now,
+                dateModified: now,
+                status: domainStateMachineHandler.initialState,
+        )
+
+        form.save()
+
+        domainStateMachineHandler.create(form, studentId)
+
+        return form
     }
+
 
     CardReissueForm update(String studentId, Long id, String reason) {
         CardReissueForm form = CardReissueForm.get(id)
@@ -163,17 +168,16 @@ where form.id = :id
             throw new ForbiddenException()
         }
 
-        if (!form.status.allow(AuditAction.UPDATE)) {
+        if (!domainStateMachineHandler.canUpdate(form)) {
             throw new BadRequestException()
         }
 
         form.reason = reason
         form.dateModified = new Date()
+
+        domainStateMachineHandler.update(form, studentId)
+
         form.save()
-
-        userLogService.log(AuditAction.UPDATE, form)
-
-        return form
     }
 
     void delete(String studentId, Long id) {
@@ -187,50 +191,41 @@ where form.id = :id
             throw new ForbiddenException()
         }
 
-        if (!form.status.allow(AuditAction.DELETE)) {
+        if (!domainStateMachineHandler.canUpdate(form)) {
             throw new BadRequestException()
         }
 
-        userLogService.log(AuditAction.DELETE, form)
+        //userLogService.log(AuditAction.DELETE, form)
 
-        if(form.workflowInstance) {
+        if (form.workflowInstance) {
             form.workflowInstance.delete()
         }
 
         form.delete()
     }
 
-    void commit(CommitCommand cmd, String userId) {
+    void commit(String studentId, CommitCommand cmd) {
         CardReissueForm form = CardReissueForm.get(cmd.id)
 
         if (!form) {
             throw new NotFoundException()
         }
 
-        if (form.student.id != userId) {
+        if (form.student.id != studentId) {
 
             throw new ForbiddenException()
         }
 
-        if (!form.status.allow(AuditAction.COMMIT)) {
+        if (!domainStateMachineHandler.canCommit(form)) {
             throw new BadRequestException()
         }
 
-        def action = AuditAction.COMMIT
-        if (form.status == CardReissueStatus.REJECTED) {
-            workflowService.setProcessed(form.workflowInstance, userId)
-        } else {
-            form.workflowInstance = workflowService.createInstance('card.reissue', cmd.title, cmd.id)
-        }
-        workflowService.createWorkItem(form.workflowInstance, Activities.CHECK, userId, action, cmd.comment, cmd.to)
+        domainStateMachineHandler.commit(form, studentId, cmd.to, cmd.comment, cmd.title)
 
-        form.status = form.status.next(action)
         form.save()
-
-        userLogService.log(action, form)
     }
 
-    def getCheckers(Long id) {
+    def getCheckers() {
         User.findAllWithPermission('PERM_CARD_REISSUE_CHECK')
     }
 }

@@ -1,15 +1,15 @@
 package cn.edu.bnuz.bell.card
 
 import cn.edu.bnuz.bell.http.BadRequestException
-import cn.edu.bnuz.bell.http.ForbiddenException
 import cn.edu.bnuz.bell.http.NotFoundException
+import cn.edu.bnuz.bell.security.User
 import cn.edu.bnuz.bell.workflow.*
 import grails.transaction.Transactional
 
 @Transactional
-class ReissueAdminService {
+class ReissueAdminService extends AbstractReviewService{
     ReissueFormService reissueFormService
-    WorkflowService workflowService
+    DomainStateMachineHandler domainStateMachineHandler
 
     /**
      * 各状态申请数量
@@ -21,7 +21,7 @@ select status, count(*)
 from CardReissueForm
 group by status
 """)
-        return results.collectEntries {[it[0], it[1]]}
+        return results.collectEntries {[it[0].name(), it[1]]}
     }
 
     /**
@@ -31,7 +31,7 @@ group by status
      * @param max
      * @return
      */
-    def findAllByStatus(CardReissueStatus status, int offset, int max) {
+    def findAllByStatus(States status, int offset, int max) {
         CardReissueForm.executeQuery """
 select new map(
   form.id as id,
@@ -42,10 +42,10 @@ select new map(
   subject.name as subject,
   form.dateModified as applyDate,
   form.status as status,
-  statis.rank as rank
+  formRank.rank as rank
 )
-from CardReissueFormStatis statis
-join statis.form as form
+from CardReissueFormRank formRank
+join formRank.form as form
 join form.student student
 join student.major major
 join major.subject subject
@@ -57,11 +57,12 @@ order by form.dateModified desc
 
     def getFormInfo(String userId, Long id) {
         def form = reissueFormService.getFormInfo(id)
-        def workitem = Workitem.findByInstanceAndActivity(
+        def workitem = Workitem.findByInstanceAndActivityAndToAndDateProcessedIsNull(
                 WorkflowInstance.load(form.workflowInstanceId),
-                WorkflowActivity.load('card.reissue.check')
+                WorkflowActivity.load('card.reissue.check'),
+                User.load(userId),
         )
-        if (workitem && workitem.status == 0 && workitem.to.id == userId) {
+        if (workitem) {
             form.workitemId = workitem.id
         }
         return form
@@ -73,28 +74,23 @@ order by form.dateModified desc
      * @param userId 用户ID
      * @param workItemId 工作项ID
      */
-    void accept(AcceptCommand cmd, String userId, UUID workItemId) {
+    void accept(AcceptCommand cmd, String userId, UUID workitemId) {
         CardReissueForm form = CardReissueForm.get(cmd.id)
 
         if (!form) {
             throw new NotFoundException()
         }
 
-        if (!form.status.allow(AuditAction.ACCEPT)) {
+        if (!domainStateMachineHandler.canAccept(form)) {
             throw new BadRequestException()
         }
 
-        if (!isChecker(cmd.id, userId)) {
-            throw new ForbiddenException()
-        }
+        def reviewType = Workitem.get(workitemId).activitySuffix
+        checkReviewer(cmd.id, reviewType, userId)
 
-        AuditAction action = AuditAction.ACCEPT
-        form.status = form.status.next(action)
+        domainStateMachineHandler.accept(form, userId, cmd.comment, workitemId)
+
         form.save()
-
-        String toUserId = workflowService.getCommitUser(form.workflowInstance)
-        workflowService.setProcessed(workItemId)
-        workflowService.createWorkItem(form.workflowInstance, Activities.VIEW, userId, action, cmd.comment, toUserId)
     }
 
     /**
@@ -103,32 +99,32 @@ order by form.dateModified desc
      * @param userId 用户ID
      * @param workItemId 工作项ID
      */
-    void reject(RejectCommand cmd, String userId, UUID workItemId) {
+    void reject(RejectCommand cmd, String userId, UUID workitemId) {
         CardReissueForm form = CardReissueForm.get(cmd.id)
 
         if (!form) {
             throw new NotFoundException()
         }
 
-        if (!form.status.allow(AuditAction.REJECT)) {
+        if (!domainStateMachineHandler.canReject(form)) {
             throw new BadRequestException()
         }
 
 
-        if (!isChecker(cmd.id, userId)) {
-            throw new ForbiddenException()
-        }
+        def reviewType = Workitem.get(workitemId).activitySuffix
+        checkReviewer(cmd.id, reviewType, userId)
 
-        def action = AuditAction.REJECT
-        form.status = form.status.next(action)
+        domainStateMachineHandler.reject(form, userId, cmd.comment, workitemId)
+
         form.save()
-
-        def toUserId = workflowService.getCommitUser(form.workflowInstance)
-        workflowService.setProcessed(workItemId)
-        workflowService.createWorkItem(form.workflowInstance, Activities.VIEW, userId, action, cmd.comment, toUserId)
     }
 
-    private boolean isChecker(Long id, String userId) {
-        reissueFormService.getCheckers(id).collect{it.id}.contains(userId)
+    List<Map> getReviewers(String type, Long id) {
+        switch (type) {
+            case ReviewTypes.CHECK:
+                return reissueFormService.getCheckers()
+            default:
+                throw new BadRequestException()
+        }
     }
 }

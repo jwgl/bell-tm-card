@@ -3,11 +3,14 @@ package cn.edu.bnuz.bell.card
 import cn.edu.bnuz.bell.http.BadRequestException
 import cn.edu.bnuz.bell.http.NotFoundException
 import cn.edu.bnuz.bell.organization.Teacher
-import cn.edu.bnuz.bell.workflow.AuditAction
+import cn.edu.bnuz.bell.workflow.DomainStateMachineHandler
+import cn.edu.bnuz.bell.workflow.States
 import grails.transaction.Transactional
 
 @Transactional
 class ReissueOrderService {
+    DomainStateMachineHandler domainStateMachineHandler
+
     def getAll() {
         CardReissueOrder.executeQuery """
 select new map(
@@ -79,19 +82,18 @@ where oi.order.id = :id
         return order
     }
 
-    CardReissueOrder create(String teacherId, CardReissueOrderCommand cmd) {
+    CardReissueOrder create(String userId, CardReissueOrderCommand cmd) {
         CardReissueOrder order = new CardReissueOrder(
-                creator: Teacher.load(teacherId),
+                creator: Teacher.load(userId),
                 dateModified: new Date(),
         )
 
         cmd.addedItems.each {
             // 更新申请状态为处理中
             def form = CardReissueForm.get(it.formId)
-            if (form.status == CardReissueStatus.APPROVED && form.status.allow(AuditAction.ACCEPT)) {
-                form.status = form.status.next(AuditAction.ACCEPT)
+            if (domainStateMachineHandler.canAccept(form)) {
+                domainStateMachineHandler.accept(form, userId)
                 form.save()
-                // 添加订单项
                 def orderItem = new CardReissueOrderItem(form: form)
                 order.addToItems(orderItem)
             }
@@ -100,17 +102,15 @@ where oi.order.id = :id
         order.save()
     }
 
-    void update(String teacherId, CardReissueOrderCommand cmd) {
+    void update(String userId, CardReissueOrderCommand cmd) {
         CardReissueOrder order = CardReissueOrder.get(cmd.id)
-        log.debug((cmd.id))
-        order.modifier = Teacher.load(teacherId)
+        order.modifier = Teacher.load(userId)
         order.dateModified = new Date()
 
         cmd.addedItems.each {
             def form = CardReissueForm.get(it.formId)
-            log.debug(form.status)
-            if (form.status == CardReissueStatus.APPROVED && form.status.allow(AuditAction.ACCEPT)) {
-                form.status = form.status.next(AuditAction.ACCEPT)
+            if (domainStateMachineHandler.canAccept(form)) {
+                domainStateMachineHandler.accept(form, userId)
                 form.save()
                 def orderItem = new CardReissueOrderItem(form: form)
                 order.addToItems(orderItem)
@@ -120,8 +120,8 @@ where oi.order.id = :id
         cmd.removedItems.each {
             // 更新申请状态为新申请
             def form = CardReissueForm.get(it.formId)
-            if (form.status == CardReissueStatus.MAKING && form.status.allow(AuditAction.REJECT)) {
-                form.status = form.status.next(AuditAction.REJECT)
+            if (domainStateMachineHandler.canReject(form)) {
+                domainStateMachineHandler.reject(form, userId)
                 form.save()
                 def orderItem = CardReissueOrderItem.load(it.id)
                 order.removeFromItems(orderItem)
@@ -139,7 +139,7 @@ where oi.order.id = :id
         }
 
         boolean allowStatus = order.items.every { item ->
-            item.form.status.allow(AuditAction.REJECT)
+            domainStateMachineHandler.canReject(item.form)
         }
 
         if (!allowStatus) {
@@ -147,44 +147,45 @@ where oi.order.id = :id
         }
 
         order.items.each { item ->
-            item.form.status = item.form.status.next(AuditAction.REJECT)
+            domainStateMachineHandler.canReject(item.form)
             item.form.save()
         }
 
         order.delete()
     }
 
-    CardReissueStatus receive(Long id, Long formId, boolean received) {
+    States receive(String userId, Long id, Long formId, boolean received) {
         def item = CardReissueOrderItem.findByOrderAndForm(CardReissueOrder.load(id), CardReissueForm.load(formId))
         if (!item) {
             throw new NotFoundException()
         }
-
-        def form = item.form
-        def action = received ? AuditAction.ACCEPT : AuditAction.REJECT;
-        if (!form.status.allow(action)) {
-            throw new BadRequestException()
-        }
-
-        form.status = form.status.next(action)
-        form.save()
-
-        return form.status
+        updateForm(userId, item, received)
     }
 
-    CardReissueStatus receiveAll(Long id, boolean received) {
-        def oldStatus = received ? CardReissueStatus.MAKING : CardReissueStatus.FINISHED
-        def newStatus = received ? CardReissueStatus.FINISHED : CardReissueStatus.MAKING
-        CardReissueOrder.executeUpdate """
-update CardReissueForm
-set status = :newStatus
-where id in (
-  select oi.form.id
-  from CardReissueOrder o
-  join o.items oi
-  where o.id = :id
-) and status = :oldStatus
-""", [id: id, oldStatus: oldStatus, newStatus: newStatus]
-        return newStatus
+    States receiveAll(String userId, Long id, boolean received) {
+        CardReissueOrder order = CardReissueOrder.get(id)
+        order.items.each { item ->
+            updateForm(userId, item, received)
+        }
+
+        received ? States.FINISHED : States.PROGRESS
+    }
+
+    States updateForm(String userId, CardReissueOrderItem item, boolean received) {
+        def form = item.form
+        if (received) {
+            if (!domainStateMachineHandler.canAccept(form)) {
+                throw new BadRequestException()
+            }
+            domainStateMachineHandler.accept(form, userId)
+        } else {
+            if (!domainStateMachineHandler.canReject(form)) {
+                throw new BadRequestException()
+            }
+            domainStateMachineHandler.reject(form, userId)
+        }
+
+        form.save()
+        form.status
     }
 }
