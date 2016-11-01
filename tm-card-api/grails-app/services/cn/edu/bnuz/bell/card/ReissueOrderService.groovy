@@ -4,7 +4,7 @@ import cn.edu.bnuz.bell.http.BadRequestException
 import cn.edu.bnuz.bell.http.NotFoundException
 import cn.edu.bnuz.bell.organization.Teacher
 import cn.edu.bnuz.bell.workflow.DomainStateMachineHandler
-import cn.edu.bnuz.bell.workflow.States
+import cn.edu.bnuz.bell.workflow.State
 import grails.transaction.Transactional
 
 @Transactional
@@ -16,7 +16,7 @@ class ReissueOrderService {
 select new map(
   o.id as id,
   count(oi.id) as totalCount,
-  sum(case when form.status = 5 then 1 else 0 end) as finishedCount,
+  sum(case when form.status = :status then 1 else 0 end) as finishedCount,
   creator.name as creatorName,
   o.dateCreated as dateCreated,
   modifier.name as modifierName,
@@ -29,7 +29,7 @@ join o.creator creator
 left join o.modifier modifier
 group by o.id, creator.name, o.dateCreated, modifier.name, o.dateModified
 order by o.id desc
-"""
+""", [status: State.FINISHED]
     }
 
     def getInfo(Long id) {
@@ -154,7 +154,7 @@ where oi.order.id = :id
         order.delete()
     }
 
-    States receive(String userId, Long id, Long formId, boolean received) {
+    State receive(String userId, Long id, Long formId, boolean received) {
         def item = CardReissueOrderItem.findByOrderAndForm(CardReissueOrder.load(id), CardReissueForm.load(formId))
         if (!item) {
             throw new NotFoundException()
@@ -162,16 +162,16 @@ where oi.order.id = :id
         updateForm(userId, item, received)
     }
 
-    States receiveAll(String userId, Long id, boolean received) {
+    State receiveAll(String userId, Long id, boolean received) {
         CardReissueOrder order = CardReissueOrder.get(id)
         order.items.each { item ->
             updateForm(userId, item, received)
         }
 
-        received ? States.FINISHED : States.PROGRESS
+        received ? State.FINISHED : State.PROGRESS
     }
 
-    States updateForm(String userId, CardReissueOrderItem item, boolean received) {
+    State updateForm(String userId, CardReissueOrderItem item, boolean received) {
         def form = item.form
         if (received) {
             if (!domainStateMachineHandler.canAccept(form)) {

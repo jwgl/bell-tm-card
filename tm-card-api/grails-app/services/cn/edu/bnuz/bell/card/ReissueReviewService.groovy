@@ -2,8 +2,7 @@ package cn.edu.bnuz.bell.card
 
 import cn.edu.bnuz.bell.http.BadRequestException
 import cn.edu.bnuz.bell.http.ForbiddenException
-import cn.edu.bnuz.bell.workflow.ReviewTypes
-import cn.edu.bnuz.bell.workflow.WorkflowService
+import cn.edu.bnuz.bell.workflow.Activities
 import cn.edu.bnuz.bell.workflow.Workitem
 import grails.transaction.Transactional
 
@@ -14,7 +13,6 @@ import grails.transaction.Transactional
 @Transactional
 class ReissueReviewService {
     ReissueFormService cardReissueFormService
-    WorkflowService workflowService
     /**
      * 获取审核数据
      * @param id Vision ID
@@ -26,9 +24,9 @@ class ReissueReviewService {
         def form = cardReissueFormService.getFormInfo(id)
 
         Workitem workitem = Workitem.get(workitemId)
-        def reviewType = workitem.activitySuffix
-        switch (reviewType) {
-            case ReviewTypes.CHECK:
+        def activity = workitem.activitySuffix
+        switch (activity) {
+            case Activities.CHECK:
                 if (!isChecker(id, userId)) {
                     throw new ForbiddenException()
                 }
@@ -39,6 +37,4 @@ class ReissueReviewService {
 
         return form
     }
-
-
 }
