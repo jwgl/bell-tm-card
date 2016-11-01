@@ -5,9 +5,9 @@ import cn.edu.bnuz.bell.http.ForbiddenException
 import cn.edu.bnuz.bell.http.NotFoundException
 import cn.edu.bnuz.bell.organization.Student
 import cn.edu.bnuz.bell.security.User
-import cn.edu.bnuz.bell.workflow.CommitCommand
 import cn.edu.bnuz.bell.workflow.DomainStateMachineHandler
-import cn.edu.bnuz.bell.workflow.States
+import cn.edu.bnuz.bell.workflow.State
+import cn.edu.bnuz.bell.workflow.commands.SubmitCommand
 import grails.transaction.Transactional
 import org.springframework.beans.factory.annotation.Value
 
@@ -134,7 +134,7 @@ where form.id = :id
         if (totalCount >= 2) {
             throw new BadRequestException('申请次数已经超过2次。')
         } else if (totalCount > 0) {
-            def unfinished = CardReissueForm.countByStudentAndStatusNotEqual(student, States.FINISHED)
+            def unfinished = CardReissueForm.countByStudentAndStatusNotEqual(student, State.FINISHED)
             if (unfinished > 0) {
                 throw new BadRequestException('存在未完成的申请。')
             }
@@ -204,7 +204,7 @@ where form.id = :id
         form.delete()
     }
 
-    void commit(String studentId, CommitCommand cmd) {
+    void submit(String studentId, SubmitCommand cmd) {
         CardReissueForm form = CardReissueForm.get(cmd.id)
 
         if (!form) {
@@ -216,11 +216,11 @@ where form.id = :id
             throw new ForbiddenException()
         }
 
-        if (!domainStateMachineHandler.canCommit(form)) {
+        if (!domainStateMachineHandler.canSubmit(form)) {
             throw new BadRequestException()
         }
 
-        domainStateMachineHandler.commit(form, studentId, cmd.to, cmd.comment, cmd.title)
+        domainStateMachineHandler.submit(form, studentId, cmd.to, cmd.comment, cmd.title)
 
         form.save()
     }

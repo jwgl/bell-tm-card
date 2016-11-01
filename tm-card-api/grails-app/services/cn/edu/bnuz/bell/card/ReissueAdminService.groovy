@@ -4,6 +4,8 @@ import cn.edu.bnuz.bell.http.BadRequestException
 import cn.edu.bnuz.bell.http.NotFoundException
 import cn.edu.bnuz.bell.security.User
 import cn.edu.bnuz.bell.workflow.*
+import cn.edu.bnuz.bell.workflow.commands.AcceptCommand
+import cn.edu.bnuz.bell.workflow.commands.RejectCommand
 import grails.transaction.Transactional
 
 @Transactional
@@ -31,7 +33,7 @@ group by status
      * @param max
      * @return
      */
-    def findAllByStatus(States status, int offset, int max) {
+    def findAllByStatus(State status, int offset, int max) {
         CardReissueForm.executeQuery """
 select new map(
   form.id as id,
@@ -85,8 +87,8 @@ order by form.dateModified desc
             throw new BadRequestException()
         }
 
-        def reviewType = Workitem.get(workitemId).activitySuffix
-        checkReviewer(cmd.id, reviewType, userId)
+        def activity = Workitem.get(workitemId).activitySuffix
+        checkReviewer(cmd.id, activity, userId)
 
         domainStateMachineHandler.accept(form, userId, cmd.comment, workitemId)
 
@@ -111,8 +113,8 @@ order by form.dateModified desc
         }
 
 
-        def reviewType = Workitem.get(workitemId).activitySuffix
-        checkReviewer(cmd.id, reviewType, userId)
+        def activity = Workitem.get(workitemId).activitySuffix
+        checkReviewer(cmd.id, activity, userId)
 
         domainStateMachineHandler.reject(form, userId, cmd.comment, workitemId)
 
@@ -121,7 +123,7 @@ order by form.dateModified desc
 
     List<Map> getReviewers(String type, Long id) {
         switch (type) {
-            case ReviewTypes.CHECK:
+            case Activities.CHECK:
                 return reissueFormService.getCheckers()
             default:
                 throw new BadRequestException()
