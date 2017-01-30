@@ -5,6 +5,7 @@ import cn.edu.bnuz.bell.workflow.StateObject
 import cn.edu.bnuz.bell.workflow.State
 import cn.edu.bnuz.bell.workflow.StateUserType
 import cn.edu.bnuz.bell.workflow.WorkflowInstance
+import jdk.internal.dynalink.beans.StaticClass
 
 /**
  * 学生证补办申请表
@@ -58,6 +59,8 @@ class CardReissueForm implements StateObject {
     }
 
     String getWorkflowId() {
-        'card.reissue'
+        WORKFLOW_ID
     }
+
+    static final String WORKFLOW_ID = 'card.reissue'
 }

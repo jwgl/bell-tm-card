@@ -3,19 +3,20 @@ package cn.edu.bnuz.bell.tm.card.api
 class UrlMappings {
 
     static mappings = {
-        // 按用户获取信息
-        "/users"(resources: 'user', includes: []) {
-            "/reissueForms"(resources: 'reissueForm') {
+        "/students"(resources: 'student', includes: []) {
+            "/reissues"(resources: 'reissueForm') {
                 "/checkers"(controller: 'reissueForm', action: 'checkers', method: 'GET')
             }
         }
 
-        // 补办学生证管理
-        "/reissueForms"(resources: 'reissueAdmin', includes:['index', 'show']) {
-            "/reviews"(resources: 'reissueAdmin', includes: ['patch'])
+        "/reviewers"(resources: 'reviewer', includes: []) {
+            "/reissues"(resources: 'reissueReview', includes:['index']) {
+                "/workitems"(resources: 'reissueReview', includes: ['show', 'patch'])
+            }
         }
 
-        // 补办学生证订单
+        "/reissues"(resources: 'reissue', includes: ['index', 'show'])
+
         "/reissueOrders"(resources: 'reissueOrder')
 
         "500"(view: '/error')

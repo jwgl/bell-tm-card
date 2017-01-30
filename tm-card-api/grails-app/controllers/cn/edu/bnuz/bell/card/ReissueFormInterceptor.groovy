@@ -12,7 +12,7 @@ class ReissueFormInterceptor {
     SecurityService securityService
 
     boolean before() {
-        if (params.userId != securityService.userId) {
+        if (params.studentId != securityService.userId) {
             render(status: HttpStatus.FORBIDDEN)
             return false
         } else {

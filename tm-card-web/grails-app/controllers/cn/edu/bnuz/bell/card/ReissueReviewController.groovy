@@ -8,5 +8,5 @@ import org.springframework.security.access.prepost.PreAuthorize
  */
 @PreAuthorize('hasAuthority("PERM_CARD_REISSUE_CHECK")')
 class ReissueReviewController {
-    def show() {}
+    def index() {}
 }

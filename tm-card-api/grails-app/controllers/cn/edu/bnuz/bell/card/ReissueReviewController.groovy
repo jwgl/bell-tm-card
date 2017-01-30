@@ -9,43 +9,46 @@ import cn.edu.bnuz.bell.workflow.commands.RejectCommand
 import org.springframework.security.access.prepost.PreAuthorize
 
 /**
- * 补办学生证申请（管理员）
+ * 审核补办学生证申请
  * @author Yang Lin
  */
 @PreAuthorize('hasAuthority("PERM_CARD_REISSUE_CHECK")')
-class ReissueAdminController {
-    ReissueAdminService reissueAdminService
+class ReissueReviewController {
+    ReissueReviewService reissueReviewService
     SecurityService securityService
 
-    def index() {
+    def index(String reviewerId) {
         def status = State.valueOf(params.status)
-        // 当参数中没有offset和max时，表示不分页
         def offset = params.int("offset") ?: 0
         def max = params.int("max") ?: (params.int("offset") ? 20 : Integer.MAX_VALUE)
-        def forms = reissueAdminService.findAllByStatus(status, offset, max)
-        def counts = reissueAdminService.getCountsByStatus()
+        def forms = reissueReviewService.findAllByStatus(status, offset, max)
+        def counts = reissueReviewService.getCountsByStatus()
         renderJson([counts: counts, forms: forms])
     }
 
-    def show(Long id) {
-        renderJson reissueAdminService.getFormInfo(securityService.userId, id);
+    def show(String reviewerId, Long reissueReviewId, String id) {
+        if (id == 'undefined') {
+            renderJson reissueReviewService.getFormForReview(reviewerId, reissueReviewId)
+        } else {
+            renderJson reissueReviewService.getFormForReview(reviewerId, reissueReviewId, UUID.fromString(id))
+        }
     }
 
-    def patch(Long reissueAdminId, String id, String op) {
+    def patch(Long reissueReviewId, String id, String op) {
         def userId = securityService.userId
         def operation = Event.valueOf(op)
         switch (operation) {
             case Event.ACCEPT:
                 def cmd = new AcceptCommand()
                 bindData(cmd, request.JSON)
-                cmd.id = reissueAdminId
-                reissueAdminService.accept(cmd, userId, UUID.fromString(id))
+                cmd.id = reissueReviewId
+                reissueReviewService.accept(cmd, userId, UUID.fromString(id))
                 break
             case Event.REJECT:
                 def cmd = new RejectCommand()
                 bindData(cmd, request.JSON)
-                cmd.id = reissueAdminId
-                reissueAdminService.reject(cmd, userId, UUID.fromString(id))
+                cmd.id = reissueReviewId
+                reissueReviewService.reject(cmd, userId, UUID.fromString(id))
                 break
             default:
                 throw new BadRequestException()

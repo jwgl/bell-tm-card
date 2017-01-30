@@ -6,7 +6,7 @@ import cn.edu.bnuz.bell.security.SecurityService
 import org.springframework.security.access.prepost.PreAuthorize
 
 /**
- * 补办学生证订单（管理员）
+ * 补办学生证订单
  * @author Yang Lin
  */
 @PreAuthorize('hasAuthority("PERM_CARD_REISSUE_CHECK")')
