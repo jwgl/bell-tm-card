@@ -9,15 +9,15 @@ import cn.edu.bnuz.bell.workflow.Event
 import org.springframework.security.access.prepost.PreAuthorize
 
 /**
- * 补办学生证申请（学生）
+ * 学生申请补办学生证
  * @author Yang Lin
  */
 @PreAuthorize('hasAuthority("PERM_CARD_REISSUE_WRITE")')
 class ReissueFormController implements ServiceExceptionHandler {
     ReissueFormService reissueFormService
 
-    def index(String userId) {
-        Student student = Student.findById(userId)
+    def index(String studentId) {
+        Student student = Student.findById(studentId)
         if (student == null) {
             throw new NotFoundException()
         }
@@ -32,41 +32,41 @@ class ReissueFormController implements ServiceExceptionHandler {
         ])
     }
 
-    def show(String userId, Long id) {
-        renderJson reissueFormService.getFormForShow(userId, id)
+    def show(String studentId, Long id) {
+        renderJson reissueFormService.getFormForShow(studentId, id)
     }
 
-    def create(String userId) {
-        renderJson reissueFormService.getFormForCreate(userId)
+    def create(String studentId) {
+        renderJson reissueFormService.getFormForCreate(studentId)
     }
 
-    def save(String userId) {
-        def form = reissueFormService.create(userId, request.JSON.reason as String)
+    def save(String studentId) {
+        def form = reissueFormService.create(studentId, request.JSON.reason as String)
         renderJson([id: form.id])
     }
 
-    def edit(String userId, Long id) {
-        renderJson reissueFormService.getFormForEdit(userId, id)
+    def edit(String studentId, Long id) {
+        renderJson reissueFormService.getFormForEdit(studentId, id)
     }
 
-    def update(String userId, Long id) {
-        reissueFormService.update(userId, id, request.JSON.reason as String)
+    def update(String studentId, Long id) {
+        reissueFormService.update(studentId, id, request.JSON.reason as String)
         renderOk()
     }
 
-    def delete(String userId, Long id) {
-        reissueFormService.delete(userId, id)
+    def delete(String studentId, Long id) {
+        reissueFormService.delete(studentId, id)
         renderOk()
     }
 
-    def patch(String userId, Long id, String op) {
+    def patch(String studentId, Long id, String op) {
         def operation = Event.valueOf(op)
         switch (operation) {
             case Event.SUBMIT:
                 def cmd = new SubmitCommand()
                 bindData(cmd, request.JSON)
                 cmd.id = id
-                reissueFormService.submit(userId, cmd)
+                reissueFormService.submit(studentId, cmd)
                 renderOk()
                 break
             default:
@@ -74,7 +74,7 @@ class ReissueFormController implements ServiceExceptionHandler {
         }
     }
 
-    def checkers() {
+    def checkers(String studentId, Long reissueFormId) {
         renderJson reissueFormService.getCheckers()
     }
 }

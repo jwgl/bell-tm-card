@@ -15,7 +15,7 @@ import org.springframework.statemachine.config.builders.StateMachineStateConfigu
 import org.springframework.statemachine.config.builders.StateMachineTransitionConfigurer
 
 @Configuration
-@EnableStateMachine(name='CardReissueFormStateMachine')
+@EnableStateMachine(name='CardReissueForm')
 @Import(StandardActionConfiguration)
 class CardReissueStateMachineConfiguration extends EnumStateMachineConfigurerAdapter<State, Event> {
     @Autowired
