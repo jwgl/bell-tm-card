@@ -34,7 +34,7 @@ class Application extends GrailsAutoConfiguration implements EnvironmentAware {
     @LoadBalanced
     @Bean()
     @Scope(proxyMode = ScopedProxyMode.TARGET_CLASS)
-    public RestTemplate restTemplate() {
-        return new RestTemplate();
+    RestTemplate restTemplate() {
+        return new RestTemplate()
     }
 }

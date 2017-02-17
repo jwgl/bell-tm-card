@@ -12,7 +12,7 @@ class ReissueOrderService {
     DomainStateMachineHandler domainStateMachineHandler
 
     def getAll() {
-        CardReissueOrder.executeQuery """
+        CardReissueOrder.executeQuery '''
 select new map(
   o.id as id,
   count(oi.id) as totalCount,
@@ -29,11 +29,11 @@ join o.creator creator
 left join o.modifier modifier
 group by o.id, creator.name, o.dateCreated, modifier.name, o.dateModified
 order by o.id desc
-""", [status: State.FINISHED]
+''', [status: State.FINISHED]
     }
 
     def getInfo(Long id) {
-        def results = CardReissueOrder.executeQuery """
+        def results = CardReissueOrder.executeQuery '''
 select new map(
   o.id as id,
   creator.name as creatorName,
@@ -45,14 +45,14 @@ from CardReissueOrder o
 join o.creator creator
 left join o.modifier modifier
 where o.id = :id
-""", [id: id]
+''', [id: id]
 
         if (!results) {
             throw new NotFoundException()
         }
 
         def order = results[0]
-        order.items = CardReissueOrderItem.executeQuery """
+        order.items = CardReissueOrderItem.executeQuery '''
 select new map(
   oi.id as id,
   form.id as formId,
@@ -77,7 +77,7 @@ join student.department department
 join student.major major
 join major.subject subject
 where oi.order.id = :id
-""", [id: id]
+''', [id: id]
 
         return order
     }
@@ -135,7 +135,7 @@ where oi.order.id = :id
     void delete(Long id) {
         def order = CardReissueOrder.get(id)
         if (!order) {
-            throw new NotFoundException();
+            throw new NotFoundException()
         }
 
         boolean allowStatus = order.items.every { item ->
