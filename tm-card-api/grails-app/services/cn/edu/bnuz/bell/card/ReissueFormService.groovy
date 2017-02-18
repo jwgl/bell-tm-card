@@ -222,6 +222,7 @@ where form.id = :id
 
         domainStateMachineHandler.submit(form, studentId, cmd.to, cmd.comment, cmd.title)
 
+        form.dateSubmitted = new Date()
         form.save()
     }
 

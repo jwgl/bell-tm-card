@@ -42,7 +42,7 @@ select new map(
   student.sex as sex,
   department.name as department,
   subject.name as subject,
-  form.dateModified as applyDate,
+  form.dateSubmitted as applyDate,
   form.status as status,
   formRank.rank as rank
 )
@@ -53,7 +53,7 @@ join student.major major
 join major.subject subject
 join student.department department
 where form.status = :status
-order by form.dateModified desc
+order by form.dateSubmitted desc
 """, [status: status], [offset: offset, max: max]
     }
 

@@ -33,6 +33,11 @@ class CardReissueForm implements StateObject {
     Date dateModified
 
     /**
+     * 提交时间
+     */
+    Date dateSubmitted
+
+    /**
      * 状态，见CardReissureStateMachineConfiguration
      */
     State status
@@ -50,6 +55,7 @@ class CardReissueForm implements StateObject {
         reason           length: 255, comment: '事由'
         dateCreated      comment: '创建时间'
         dateModified     comment: '修改时间'
+        dateSubmitted    comment: '提交时间'
         status           sqlType: 'state', type: StateUserType, comment: '状态'
         workflowInstance comment: '工作流实例'
     }
