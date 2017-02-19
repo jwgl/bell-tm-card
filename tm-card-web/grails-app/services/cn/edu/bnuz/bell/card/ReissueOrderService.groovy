@@ -1,25 +1,25 @@
 package cn.edu.bnuz.bell.card
 
 import cn.edu.bnuz.bell.report.ZipService
-import grails.plugins.rest.client.RestBuilder
-import org.grails.web.util.WebUtils
+import groovy.json.JsonSlurper
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.web.client.RestTemplate
+import org.springframework.security.oauth2.client.OAuth2RestOperations
+
+import javax.annotation.Resource
 
 class ReissueOrderService {
     @Value('${bell.student.picturePath}')
     String picturePath
 
     ZipService zipService
-    RestTemplate restTemplate
+
+    @Resource(name="reportRestTemplate")
+    OAuth2RestOperations restTemplate
 
     byte[] pictures(Long orderId) {
-        RestBuilder rest = new RestBuilder(restTemplate)
-        def restResponse = rest.get('http://tm-card-api/reissueOrders/{orderId}', [orderId: orderId]) {
-            auth WebUtils.retrieveGrailsWebRequest().currentRequest.getHeader('authorization')
-        }
-
-        File[] files = restResponse.json.items.collect {
+        def restResponse = restTemplate.getForObject('http://tm-card-api/reissueOrders/{orderId}', String, [orderId: orderId])
+        def order = new JsonSlurper().parseText(restResponse)
+        File[] files = order.items.collect {
             new File(picturePath, "${it.studentId}.jpg")
         }
         zipService.zip(files)
