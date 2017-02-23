@@ -11,7 +11,7 @@ import grails.transaction.Transactional
 class ReissueOrderService {
     DomainStateMachineHandler domainStateMachineHandler
 
-    def getAll() {
+    def list(Integer offset, Integer max) {
         CardReissueOrder.executeQuery '''
 select new map(
   o.id as id,
@@ -29,7 +29,7 @@ join o.creator creator
 left join o.modifier modifier
 group by o.id, creator.name, o.dateCreated, modifier.name, o.dateModified
 order by o.id desc
-''', [status: State.FINISHED]
+''', [status: State.FINISHED], [offset: offset, max: max]
     }
 
     def getInfo(Long id) {

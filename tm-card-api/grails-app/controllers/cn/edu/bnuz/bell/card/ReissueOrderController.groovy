@@ -15,7 +15,9 @@ class ReissueOrderController implements ServiceExceptionHandler {
     ReissueOrderService reissueOrderService
 
     def index() {
-        renderJson reissueOrderService.getAll()
+        def offset = params.int('offset') ?: 0
+        def max = params.int('max') ?: 10
+        renderJson reissueOrderService.list(offset, max)
     }
 
     def show(Long id) {
