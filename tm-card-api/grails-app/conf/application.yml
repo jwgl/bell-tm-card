@@ -112,7 +112,7 @@ server:
 
 spring:
     application:
-        name: '@info.app.name@'
+        name: tm-card-api
 
 eureka:
     client:
