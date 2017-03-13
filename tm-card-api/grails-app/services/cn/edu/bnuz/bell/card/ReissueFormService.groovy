@@ -4,7 +4,7 @@ import cn.edu.bnuz.bell.http.BadRequestException
 import cn.edu.bnuz.bell.http.ForbiddenException
 import cn.edu.bnuz.bell.http.NotFoundException
 import cn.edu.bnuz.bell.organization.Student
-import cn.edu.bnuz.bell.security.User
+import cn.edu.bnuz.bell.system.SystemConfigService
 import cn.edu.bnuz.bell.workflow.DomainStateMachineHandler
 import cn.edu.bnuz.bell.workflow.State
 import cn.edu.bnuz.bell.workflow.commands.SubmitCommand
@@ -21,6 +21,7 @@ import java.nio.file.Paths
 @Transactional
 class ReissueFormService {
     DomainStateMachineHandler domainStateMachineHandler
+    SystemConfigService systemConfigService
 
     @Value('${bell.student.picturePath}')
     String picturePath
@@ -39,23 +40,32 @@ class ReissueFormService {
      * @param studentId
      * @return 申请列表
      */
-    def getForms(String studentId) {
-        CardReissueForm.executeQuery '''
+    def list(String studentId) {
+        if (!pictureExists(studentId)) {
+            return [
+                    warning: systemConfigService.get(CardReissueForm.CONFIG_NO_PICTURE, 'No picture.')
+            ]
+        }
+
+        def forms = CardReissueForm.executeQuery '''
 select new Map(
   form.id as id,
+  form.ordinal as ordinal,
   form.status as status
 )
 from CardReissueForm form
 join form.student student
 where student.id = :studentId
 ''', [studentId: studentId]
+        return [forms: forms]
     }
 
-    private getStudent(String studentId) {
+    def getStudentInfo(String studentId) {
         def results = Student.executeQuery '''
 select new map(
   student.id as id,
   student.name as name,
+  student.sex as sex,
   student.birthday as birthday,
   admission.fromProvince as province,
   department.name as department,
@@ -74,13 +84,14 @@ where student.id = :studentId
         return results[0]
     }
 
-    def getFormInfo(Long id) {
+    Map getFormInfo(Long id) {
         def results = CardReissueForm.executeQuery '''
 select new map(
   form.id as id,
   form.reason as reason,
   form.status as status,
   form.student.id as studentId,
+  form.ordinal as ordinal,
   form.workflowInstance.id as workflowInstanceId
 )
 from CardReissueForm form
@@ -90,33 +101,48 @@ where form.id = :id
             throw new NotFoundException()
         }
 
-        def form = results[0]
-        form.student = getStudent(form.studentId)
-        form.remove('studentId')
-
-        return form
+        return results ? results[0] : null
     }
 
     def getFormForShow(String studentId, Long id) {
         def form = getFormInfo(id)
 
-        if (form.student.id != studentId) {
+        if (!form) {
+            throw new NotFoundException()
+        }
+
+        if (form.studentId != studentId) {
             throw new ForbiddenException()
         }
 
-        form.editable = domainStateMachineHandler.canUpdate(form)
-
-        return form
+        return [
+                form    : form,
+                student : getStudentInfo(form.studentId as String),
+                editable: domainStateMachineHandler.canUpdate(form),
+        ]
     }
 
     def getFormForCreate(String studentId) {
-        return [student: getStudent(studentId)]
+        def student = Student.load(studentId)
+        def count = checkFormCount(student)
+
+        return [
+                form   : [
+                        studentId: studentId,
+                        ordinal  : count + 1,
+                ],
+                student: getStudentInfo(studentId),
+        ]
     }
 
     def getFormForEdit(String studentId, Long id) {
         def form = getFormInfo(id)
 
-        if (form.student.id != studentId) {
+        if (!form) {
+            throw new NotFoundException()
+        }
+
+        if (form.studentId != studentId) {
             throw new ForbiddenException()
         }
 
@@ -124,28 +150,20 @@ where form.id = :id
             throw new BadRequestException()
         }
 
-        return form
+        return [form: form, student: getStudentInfo(form.studentId as String)]
     }
 
-    CardReissueForm create(String studentId, String reason) {
+    CardReissueForm create(String studentId, CardReissueFormCommand cmd) {
         def student = Student.load(studentId)
-        def totalCount = CardReissueForm.countByStudent(student)
-
-        if (totalCount >= 2) {
-            throw new BadRequestException('申请次数已经超过2次。')
-        } else if (totalCount > 0) {
-            def unfinished = CardReissueForm.countByStudentAndStatusNotEqual(student, State.FINISHED)
-            if (unfinished > 0) {
-                throw new BadRequestException('存在未完成的申请。')
-            }
-        }
+        def count = checkFormCount(student)
 
         def now = new Date()
         CardReissueForm form = new CardReissueForm(
                 student: student,
-                reason: reason,
+                reason: cmd.reason,
                 dateCreated: now,
                 dateModified: now,
+                ordinal: count + 1,
                 status: domainStateMachineHandler.initialState,
         )
 
@@ -157,8 +175,8 @@ where form.id = :id
     }
 
 
-    CardReissueForm update(String studentId, Long id, String reason) {
-        CardReissueForm form = CardReissueForm.get(id)
+    CardReissueForm update(String studentId, CardReissueFormCommand cmd) {
+        CardReissueForm form = CardReissueForm.get(cmd.id)
 
         if (!form) {
             throw new NotFoundException()
@@ -172,7 +190,7 @@ where form.id = :id
             throw new BadRequestException()
         }
 
-        form.reason = reason
+        form.reason = cmd.reason
         form.dateModified = new Date()
 
         domainStateMachineHandler.update(form, studentId)
@@ -194,8 +212,6 @@ where form.id = :id
         if (!domainStateMachineHandler.canUpdate(form)) {
             throw new BadRequestException()
         }
-
-        //userLogService.log(AuditAction.DELETE, form)
 
         if (form.workflowInstance) {
             form.workflowInstance.delete()
@@ -226,7 +242,26 @@ where form.id = :id
         form.save()
     }
 
-    def getCheckers() {
-        User.findAllWithPermission('PERM_CARD_REISSUE_CHECK')
+    Integer checkFormCount(Student student) {
+        def totalCount = CardReissueForm.countByStudent(student)
+        def maxCount = systemConfigService.get(CardReissueForm.CONFIG_MAX_COUNT, 2)
+
+        if (totalCount >= maxCount) {
+            throw new BadRequestException("申请次数已经超过${maxCount}次。")
+        } else if (totalCount > 0) {
+            def unfinished = CardReissueForm.countByStudentAndStatusNotEqual(student, State.FINISHED)
+            if (unfinished > 0) {
+                throw new BadRequestException('存在未完成的申请。')
+            }
+        }
+        return totalCount
+    }
+
+    def getNotice() {
+        [
+                title: '补办学生证须知',
+                content: systemConfigService.get(CardReissueForm.CONFIG_NOTICE, ''),
+                maxCount: systemConfigService.get(CardReissueForm.CONFIG_MAX_COUNT, 2)
+        ]
     }
 }

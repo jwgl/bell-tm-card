@@ -1,8 +1,10 @@
 package cn.edu.bnuz.bell.tm.card.api
 
+import cn.edu.bnuz.bell.workflow.Activities
 import cn.edu.bnuz.bell.workflow.Event
 import cn.edu.bnuz.bell.workflow.State
 import cn.edu.bnuz.bell.workflow.actions.AutoEntryAction
+import cn.edu.bnuz.bell.workflow.actions.SubmittedEntryAction
 import cn.edu.bnuz.bell.workflow.config.StandardActionConfiguration
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Bean
@@ -27,8 +29,8 @@ class CardReissueStateMachineConfiguration extends EnumStateMachineConfigurerAda
             .withStates()
                 .initial(State.CREATED)
                 .state(State.CREATED,   [actions.logEntryAction()], null)
-                .state(State.SUBMITTED, [actions.logEntryAction(), actions.submittedEntryAction()], [actions.workitemProcessedAction()])
-                .state(State.CHECKED,   [actions.logEntryAction(), checkedEntryAction()], null)
+                .state(State.SUBMITTED, [actions.logEntryAction(), submittedEntryAction()], [actions.workitemProcessedAction()])
+                .state(State.APPROVED,  [actions.logEntryAction(), approvedEntryAction()], null)
                 .state(State.REJECTED,  [actions.logEntryAction(), actions.rejectedEntryAction()],  [actions.workitemProcessedAction()])
                 .state(State.PROGRESS,  [actions.logEntryAction(), progressEntryAction()], null)
                 .state(State.FINISHED,  [actions.logEntryAction(), actions.notifySubmitterAction()], null)
@@ -50,7 +52,7 @@ class CardReissueStateMachineConfiguration extends EnumStateMachineConfigurerAda
             .withExternal()
                 .source(State.SUBMITTED)
                 .event(Event.ACCEPT)
-                .target(State.CHECKED)
+                .target(State.APPROVED)
                 .and()
             .withExternal()
                 .source(State.SUBMITTED)
@@ -58,7 +60,7 @@ class CardReissueStateMachineConfiguration extends EnumStateMachineConfigurerAda
                 .target(State.REJECTED)
                 .and()
             .withExternal()
-                .source(State.CHECKED)
+                .source(State.APPROVED)
                 .event(Event.ACCEPT)
                 .target(State.PROGRESS)
                 .and()
@@ -70,7 +72,7 @@ class CardReissueStateMachineConfiguration extends EnumStateMachineConfigurerAda
             .withExternal()
                 .source(State.PROGRESS)
                 .event(Event.REJECT)
-                .target(State.CHECKED)
+                .target(State.APPROVED)
                 .and()
             .withInternal()
                 .source(State.REJECTED)
@@ -84,7 +86,12 @@ class CardReissueStateMachineConfiguration extends EnumStateMachineConfigurerAda
     }
 
     @Bean
-    Action<State, Event> checkedEntryAction() {
+    Action<State, Event> submittedEntryAction() {
+        new SubmittedEntryAction(Activities.APPROVE)
+    }
+
+    @Bean
+    Action<State, Event> approvedEntryAction() {
         new AutoEntryAction()
     }
 

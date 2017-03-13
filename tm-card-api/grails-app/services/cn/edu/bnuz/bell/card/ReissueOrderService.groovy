@@ -12,7 +12,7 @@ class ReissueOrderService {
     DomainStateMachineHandler domainStateMachineHandler
 
     def list(Integer offset, Integer max) {
-        CardReissueOrder.executeQuery '''
+        def orders = CardReissueOrder.executeQuery '''
 select new map(
   o.id as id,
   count(oi.id) as totalCount,
@@ -28,8 +28,13 @@ join oi.form form
 join o.creator creator
 left join o.modifier modifier
 group by o.id, creator.name, o.dateCreated, modifier.name, o.dateModified
-order by o.id desc
+order by o.dateCreated desc
 ''', [status: State.FINISHED], [offset: offset, max: max]
+        def count = CardReissueOrder.count()
+        return [
+                orders: orders,
+                count: count,
+        ]
     }
 
     def getInfo(Long id) {
@@ -56,7 +61,8 @@ where o.id = :id
 select new map(
   oi.id as id,
   form.id as formId,
-  form.dateModified as applyDate,
+  form.dateSubmitted as dateSubmitted,
+  form.dateApproved as dateApproved,
   form.status as status,
   student.id as studentId,
   student.name as name,
@@ -77,6 +83,7 @@ join student.department department
 join student.major major
 join major.subject subject
 where oi.order.id = :id
+order by student.id
 ''', [id: id]
 
         return order

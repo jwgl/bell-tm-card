@@ -4,12 +4,11 @@ import cn.edu.bnuz.bell.workflow.State
 import org.springframework.security.access.prepost.PreAuthorize
 
 /**
- * 查看补办学生证申请
+ * 补办学生证查看
  */
-@PreAuthorize('hasAuthority("PERM_CARD_REISSUE_CHECK")')
+@PreAuthorize('hasAuthority("PERM_CARD_REISSUE_APPROVE")')
 class ReissueController {
     ReissueService reissueService
-    ReissueFormService reissueFormService
 
     def index() {
         def status = State.valueOf(params.status)
@@ -18,6 +17,6 @@ class ReissueController {
     }
 
     def show(Long id) {
-        renderJson reissueFormService.getFormInfo(id)
+        renderJson reissueService.getForm(id)
     }
 }
