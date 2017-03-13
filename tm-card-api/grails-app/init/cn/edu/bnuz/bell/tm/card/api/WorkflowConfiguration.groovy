@@ -1,5 +1,6 @@
 package cn.edu.bnuz.bell.tm.card.api
 
+import cn.edu.bnuz.bell.card.ReissueReviewerService
 import cn.edu.bnuz.bell.workflow.DomainStateMachineHandler
 import cn.edu.bnuz.bell.workflow.Event
 import cn.edu.bnuz.bell.workflow.StateObject
@@ -17,7 +18,8 @@ class WorkflowConfiguration {
     @Bean
     DomainStateMachineHandler domainStateMachineHandler(
             StateMachine<State, Event> stateMachine,
-            StateMachinePersister<State, Event, StateObject> persister) {
-        new DomainStateMachineHandler(stateMachine, persister)
+            StateMachinePersister<State, Event, StateObject> persister,
+            ReissueReviewerService reviewerService) {
+        new DomainStateMachineHandler(stateMachine, persister, reviewerService)
     }
 }

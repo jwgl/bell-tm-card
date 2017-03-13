@@ -30,7 +30,7 @@ class CardReissueOrder {
 	static hasMany = [items : CardReissueOrderItem]
 
 	static mapping = {
-		comment      '补办学生证制作订单'
+		comment      '补办学生证订单'
         id           generator: 'identity', comment: '订单ID'
         creator      comment: '创建人'
         modifier     comment: '修改人'

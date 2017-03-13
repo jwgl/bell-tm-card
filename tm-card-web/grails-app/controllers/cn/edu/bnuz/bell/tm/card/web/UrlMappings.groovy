@@ -7,8 +7,8 @@ class UrlMappings {
             "/reissues"(resources: 'reissueForm', includes: ['index'])
         }
 
-        "/reviewers"(resources: 'reviewer', 'includes': []) {
-            "/reissues"(resources: 'reissueReview', includes: ['index'])
+        "/approvers"(resources: 'approver', 'includes': []) {
+            "/reissues"(resources: 'reissueApproval', includes: ['index'])
         }
 
         "/reissues"(resources: 'reissue', includes: ['show'])

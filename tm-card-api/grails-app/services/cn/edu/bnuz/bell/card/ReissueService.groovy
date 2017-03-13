@@ -5,6 +5,8 @@ import grails.transaction.Transactional
 
 @Transactional
 class ReissueService {
+    ReissueFormService reissueFormService
+
     def findAllByStatus(State status) {
         CardReissueForm.executeQuery '''
 select new map(
@@ -14,7 +16,8 @@ select new map(
   student.sex as sex,
   department.name as department,
   subject.name as subject,
-  form.dateModified as applyDate,
+  form.dateSubmitted as dateSubmitted,
+  form.dateApproved as dateApproved,
   form.status as status
 )
 from CardReissueForm form
@@ -25,5 +28,13 @@ join student.department department
 where form.status = :status
 order by form.dateModified desc
 ''', [status: status]
+    }
+
+    def getForm(Long id) {
+        def form = reissueFormService.getFormInfo(id)
+        return [
+                form    : form,
+                student : reissueFormService.getStudentInfo(form.studentId as String),
+        ]
     }
 }

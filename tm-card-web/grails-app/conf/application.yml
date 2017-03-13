@@ -83,7 +83,7 @@ server:
 
 spring:
     application:
-        name: tm-card-web
+        name: ${info.app.name}
 
 eureka:
     client:

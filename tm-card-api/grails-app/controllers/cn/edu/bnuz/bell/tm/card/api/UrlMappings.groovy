@@ -5,13 +5,16 @@ class UrlMappings {
     static mappings = {
         "/students"(resources: 'student', includes: []) {
             "/reissues"(resources: 'reissueForm') {
-                "/checkers"(controller: 'reissueForm', action: 'checkers', method: 'GET')
+                "/approvers"(controller: 'reissueForm', action: 'approvers', method: 'GET')
+                collection {
+                    "/notice"(controller: 'reissueForm', action: 'notice', method: 'GET')
+                }
             }
         }
 
-        "/reviewers"(resources: 'reviewer', includes: []) {
-            "/reissues"(resources: 'reissueReview', includes:['index']) {
-                "/workitems"(resources: 'reissueReview', includes: ['show', 'patch'])
+        "/approvers"(resources: 'approver', includes: []) {
+            "/reissues"(resources: 'reissueApproval', includes:['index']) {
+                "/workitems"(resources: 'reissueApproval', includes: ['show', 'patch'])
             }
         }
 

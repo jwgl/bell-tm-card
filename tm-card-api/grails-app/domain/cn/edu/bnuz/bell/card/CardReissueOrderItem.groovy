@@ -13,7 +13,7 @@ class CardReissueOrderItem {
     ]
 
     static mapping = {
-        comment      '补办学生证制作订单项'
+        comment      '补办学生证订单项'
         id           generator: 'identity', comment: '订单项ID'
         form         comment: '申请表'
         dateReceived comment: '接收时间'
