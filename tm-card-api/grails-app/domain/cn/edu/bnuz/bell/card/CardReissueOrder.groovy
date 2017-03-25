@@ -1,6 +1,6 @@
 package cn.edu.bnuz.bell.card
 
-import cn.edu.bnuz.bell.organization.Teacher;
+import cn.edu.bnuz.bell.organization.Teacher
 
 /**
  * 补办学生证制作订单
