@@ -181,18 +181,18 @@ order by student.id
     State updateForm(String userId, CardReissueOrderItem item, boolean received) {
         def form = item.form
         if (received) {
-            if (!domainStateMachineHandler.canAccept(form)) {
-                throw new BadRequestException()
+            if (domainStateMachineHandler.canAccept(form)) {
+                domainStateMachineHandler.accept(form, userId)
+                form.save()
             }
-            domainStateMachineHandler.accept(form, userId)
         } else {
-            if (!domainStateMachineHandler.canReject(form)) {
-                throw new BadRequestException()
+            if (domainStateMachineHandler.canReject(form)) {
+                domainStateMachineHandler.reject(form, userId)
+                form.save()
             }
-            domainStateMachineHandler.reject(form, userId)
         }
 
-        form.save()
+
         form.status
     }
 }
