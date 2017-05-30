@@ -9,7 +9,6 @@ import grails.transaction.Transactional
 @Transactional(readOnly = true)
 class ReissueReviewerService implements ReviewerProvider{
     List<Map> getReviewers(Object id, String activity) {
-        println activity
         switch (activity) {
             case Activities.APPROVE:
                 return getApprovers()
