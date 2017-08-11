@@ -32,12 +32,5 @@ if (Environment.isDevelopmentMode() && targetDir != null) {
         }
     }
     logger("StackTrace", ERROR, ['FULL_STACKTRACE'], false)
-    root(ERROR, ['STDOUT', 'FULL_STACKTRACE'])
 }
-else {
-    root(ERROR, ['STDOUT'])
-}
-
-logger("cn.edu.bnuz.bell", DEBUG)
-logger("grails.app.controllers", DEBUG)
-logger("grails.app.services", DEBUG)
+root(ERROR, ['STDOUT'])
