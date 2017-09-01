@@ -1,7 +1,7 @@
 package cn.edu.bnuz.bell.card
 
 import cn.edu.bnuz.bell.workflow.State
-import grails.transaction.Transactional
+import grails.gorm.transactions.Transactional
 
 @Transactional
 class ReissueService {

@@ -7,7 +7,7 @@ import cn.edu.bnuz.bell.service.DataAccessService
 import cn.edu.bnuz.bell.workflow.*
 import cn.edu.bnuz.bell.workflow.commands.AcceptCommand
 import cn.edu.bnuz.bell.workflow.commands.RejectCommand
-import grails.transaction.Transactional
+import grails.gorm.transactions.Transactional
 
 @Transactional
 class ReissueApprovalService {
