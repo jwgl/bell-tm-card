@@ -35,19 +35,17 @@ class ReissueFormService {
         Files.exists(Paths.get(picturePath, "${studentId}.jpg"))
     }
 
+    String getNoPictureWarning() {
+        systemConfigService.get(CardReissueForm.CONFIG_NO_PICTURE, 'No picture.')
+    }
+
     /**
      * 查找学生所有申请
      * @param studentId
      * @return 申请列表
      */
     def list(String studentId) {
-        if (!pictureExists(studentId)) {
-            return [
-                    warning: systemConfigService.get(CardReissueForm.CONFIG_NO_PICTURE, 'No picture.')
-            ]
-        }
-
-        def forms = CardReissueForm.executeQuery '''
+        CardReissueForm.executeQuery '''
 select new Map(
   form.id as id,
   form.ordinal as ordinal,
@@ -57,7 +55,6 @@ from CardReissueForm form
 join form.student student
 where student.id = :studentId
 ''', [studentId: studentId]
-        return [forms: forms]
     }
 
     def getStudentInfo(String studentId) {
@@ -115,10 +112,11 @@ where form.id = :id
             throw new ForbiddenException()
         }
 
+        form.editable = domainStateMachineHandler.canUpdate(form)
+
         return [
                 form    : form,
                 student : getStudentInfo(form.studentId as String),
-                editable: domainStateMachineHandler.canUpdate(form),
         ]
     }
 
@@ -150,7 +148,10 @@ where form.id = :id
             throw new BadRequestException()
         }
 
-        return [form: form, student: getStudentInfo(form.studentId as String)]
+        [
+                form   : form,
+                student: getStudentInfo(form.studentId as String)
+        ]
     }
 
     CardReissueForm create(String studentId, CardReissueFormCommand cmd) {
@@ -259,8 +260,12 @@ where form.id = :id
 
     def getNotice() {
         [
-                title: '补办学生证须知',
-                content: systemConfigService.get(CardReissueForm.CONFIG_NOTICE, ''),
+                notice: systemConfigService.get(CardReissueForm.CONFIG_NOTICE, ''),
+        ]
+    }
+
+    def getSettings() {
+        [
                 maxCount: systemConfigService.get(CardReissueForm.CONFIG_MAX_COUNT, 2)
         ]
     }
