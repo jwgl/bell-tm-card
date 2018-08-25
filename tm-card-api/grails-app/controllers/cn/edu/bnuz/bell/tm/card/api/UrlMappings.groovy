@@ -7,7 +7,9 @@ class UrlMappings {
             "/reissues"(resources: 'reissueForm') {
                 "/approvers"(controller: 'reissueForm', action: 'approvers', method: 'GET')
                 collection {
+                    "/picture"(controller: 'reissueForm', action: 'picture', method: 'GET')
                     "/notice"(controller: 'reissueForm', action: 'notice', method: 'GET')
+                    "/settings"(controller: 'reissueForm', action: 'settings', method: 'GET')
                 }
             }
         }
@@ -18,9 +20,16 @@ class UrlMappings {
             }
         }
 
-        "/reissues"(resources: 'reissue', includes: ['index', 'show'])
+        "/reissues"(resources: 'reissue', includes: ['show'])
 
-        "/reissueOrders"(resources: 'reissueOrder')
+        "/reissueOrders"(resources: 'reissueOrder') {
+            "/productionOrder"(controller: 'reissueOrderReport', action: 'productionOrder')
+            "/distributionList"(controller: 'reissueOrderReport', action: 'distributionList')
+            "/pictures"(controller: 'reissueOrderReport', action: 'pictures')
+            collection {
+                "/unorderedForms"(action: 'unorderedForms', method: 'GET')
+            }
+        }
 
         "500"(view: '/error')
         "404"(view: '/notFound')

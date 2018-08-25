@@ -70,6 +70,20 @@ class ReissueFormController implements ServiceExceptionHandler {
         renderJson reissueFormService.getNotice()
     }
 
+    def settings() {
+        renderJson reissueFormService.getSettings()
+    }
+
+    def picture(String studentId) {
+        if (!reissueFormService.pictureExists(studentId)) {
+            renderJson( [
+                    warning: reissueFormService.getNoPictureWarning()
+            ])
+        } else {
+            renderOk()
+        }
+    }
+
     def approvers(String studentId, Long reissueFormId) {
         renderJson reissueReviewerService.getApprovers()
     }

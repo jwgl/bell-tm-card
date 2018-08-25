@@ -3,6 +3,7 @@ package cn.edu.bnuz.bell.card
 import cn.edu.bnuz.bell.http.BadRequestException
 import cn.edu.bnuz.bell.http.ServiceExceptionHandler
 import cn.edu.bnuz.bell.security.SecurityService
+import cn.edu.bnuz.bell.workflow.State
 import org.springframework.security.access.prepost.PreAuthorize
 
 /**
@@ -17,6 +18,7 @@ class ReissueOrderController implements ServiceExceptionHandler {
     def index() {
         def offset = params.int('offset') ?: 0
         def max = params.int('max') ?: 10
+        renderCount reissueOrderService.listCount()
         renderJson reissueOrderService.list(offset, max)
     }
 
@@ -53,16 +55,22 @@ class ReissueOrderController implements ServiceExceptionHandler {
     def patch(Long id) {
         def userId = securityService.userId
         def status
-        switch (request.JSON.type) {
+        switch (request.JSON.type as String) {
             case 'RECEIVE':
-                status = reissueOrderService.receive(userId, id, request.JSON.formId, request.JSON.received)
+                status = reissueOrderService.receive(userId, id, request.JSON.formId as Long, request.JSON.received as boolean)
                 break
             case 'RECEIVE_ALL':
-                status = reissueOrderService.receiveAll(userId, id, request.JSON.received)
+                status = reissueOrderService.receiveAll(userId, id, request.JSON.received as boolean)
                 break
             default:
                 throw new BadRequestException()
         }
         renderJson([status: status])
     }
+
+    def unorderedForms() {
+        renderJson([forms: reissueOrderService.getUnorderedForms()])
+    }
+
+
 }

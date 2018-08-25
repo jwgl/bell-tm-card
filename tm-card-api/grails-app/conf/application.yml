@@ -139,4 +139,6 @@ bell:
             prefixes:
                 - dv
     student:
-        picturePath: 'D:\bell\bell-tm-pictures'
+        picturePath: 'D:\bell\bell-pictures'
+    report:
+        service: tm-report
