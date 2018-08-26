@@ -1,4 +1,3 @@
 rootProject.name = 'bell-tm-card'
 
 include 'tm-card-api'
-include 'tm-card-web'
