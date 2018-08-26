@@ -183,7 +183,7 @@ where form.id = :id
             throw new NotFoundException()
         }
 
-        if (form.student.id != studentId) {
+        if (form.studentId != studentId) {
             throw new ForbiddenException()
         }
 
@@ -206,7 +206,7 @@ where form.id = :id
             throw new NotFoundException()
         }
 
-        if (form.student.id != studentId) {
+        if (form.studentId != studentId) {
             throw new ForbiddenException()
         }
 
@@ -228,7 +228,7 @@ where form.id = :id
             throw new NotFoundException()
         }
 
-        if (form.student.id != studentId) {
+        if (form.studentId != studentId) {
 
             throw new ForbiddenException()
         }
